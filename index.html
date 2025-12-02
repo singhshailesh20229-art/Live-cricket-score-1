@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cricket Dashboard – Live + Upcoming</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;font-family:Poppins,sans-serif;}
+body{background:#001326;color:#fff;display:flex;justify-content:center;align-items:flex-start;padding:20px;}
+.container{width:450px;}
+.card{background:rgba(255,255,255,0.08);padding:20px;border-radius:15px;margin-bottom:20px;backdrop-filter:blur(10px);box-shadow:0 0 20px rgba(0,0,0,.4);}
+.title{font-size:22px;font-weight:600;margin-bottom:12px;text-align:center;}
+.logo{width:60px;border-radius:50%;border:2px solid #fff;}
+.score{font-size:36px;font-weight:600;margin-top:10px;text-align:center;color:#00eaff;text-shadow:0 0 10px #00eaff;}
+.overs,.status{text-align:center;color:#ddd;margin:4px 0;}
+.player-section{display:flex;justify-content:space-between;margin-top:10px;}
+.player-section div{width:48%;background:rgba(0,255,255,0.05);padding:8px;border-radius:8px;}
+.upcoming-card{margin-top:12px;padding:12px;border-radius:10px;background:rgba(255,255,255,0.12);cursor:pointer;transition:0.2s;}
+.upcoming-card:hover{background:rgba(0,255,255,0.1);}
+.team-block{display:flex;align-items:center;gap:10px;}
+.team-logo{width:40px;border-radius:50%;}
+.details{margin-top:8px;font-size:13px;color:#ffd;}
+.countdown{font-weight:bold;color:#00ffea;}
+.squad{font-size:12px;color:#fff;margin-top:5px;}
+button{width:100%;padding:10px;border:0;background:#00eaff;font-weight:600;border-radius:10px;color:#000;margin-top:10px;}
+</style>
+</head>
+<body>
+<div class="container">
+
+<!-- LIVE MATCH -->
+<div class="card">
+    <div class="title">🏏 LIVE MATCH</div>
+    
+    <div class="team-block" style="justify-content:center; gap:20px; margin-bottom:10px;">
+        <div>
+            <img id="team1Logo" class="team-logo">
+            <div id="team1Name" style="text-align:center; margin-top:5px;"></div>
+        </div>
+        <div style="align-self:center; font-weight:bold; font-size:18px;">vs</div>
+        <div>
+            <img id="team2Logo" class="team-logo">
+            <div id="team2Name" style="text-align:center; margin-top:5px;"></div>
+        </div>
+    </div>
+
+    <div class="score" id="teamScore">--/--</div>
+    <div class="overs" id="teamOvers">Overs: --</div>
+    <div class="status" id="matchStatus">Fetching live score...</div>
+
+    <div class="player-section">
+        <div id="batsmen">
+            <strong>Batsmen:</strong><br>Loading...
+        </div>
+        <div id="bowler">
+            <strong>Bowler:</strong><br>Loading...
+        </div>
+    </div>
+
+    <button onclick="fetchScore()">Refresh Live Score</button>
+</div>
+
+<!-- UPCOMING MATCHES -->
+<div class="card">
+    <div class="title">📅 UPCOMING MATCHES</div>
+    <div id="upcomingList">Loading upcoming matches...</div>
+</div>
+
+</div>
+
+<script>
+// ================= TEAM LOGO
+function getLogo(team){
+    team = team.toLowerCase();
+    if(team.includes("india")) return "https://flagcdn.com/w320/in.png";
+    if(team.includes("pak")) return "https://flagcdn.com/w320/pk.png";
+    if(team.includes("aus")) return "https://flagcdn.com/w320/au.png";
+    if(team.includes("eng")) return "https://flagcdn.com/w320/gb.png";
+    if(team.includes("sri")) return "https://flagcdn.com/w320/lk.png";
+    if(team.includes("bang")) return "https://flagcdn.com/w320/bd.png";
+    return "https://flagcdn.com/w320/xx.png";
+}
+
+// ================= LIVE MATCH
+async function fetchScore(){
+    const url="https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live";
+    const opt={method:"GET",headers:{
+        "x-rapidapi-key":"0ae321d1b1msh5d066c3830ac468p174e88jsn6ad7d1eeace6",
+        "x-rapidapi-host":"cricbuzz-cricket.p.rapidapi.com"
+    }};
+    try{
+        const res = await fetch(url,opt);
+        const data = await res.json();
+
+        if(!data.typeMatches.length || !data.typeMatches[0].seriesMatches.length){
+            document.getElementById("matchStatus").innerText = "No live matches!";
+            return;
+        }
+
+        let match = data.typeMatches[0].seriesMatches[0].seriesAdWrapper.matches[0];
+        let info = match.matchInfo;
+        let score = match.matchScore.team1Score?.inngs1 || {};
+
+        // Team logos & names
+        document.getElementById("team1Logo").src = getLogo(info.team1.teamName);
+        document.getElementById("team2Logo").src = getLogo(info.team2.teamName);
+        document.getElementById("team1Name").innerText = info.team1.teamName;
+        document.getElementById("team2Name").innerText = info.team2.teamName;
+
+        // Live score & overs
+        document.getElementById("teamScore").innerText = score.runs+"/"+score.wickets;
+        document.getElementById("teamOvers").innerText = "Overs: "+(score.overs || "--");
+        document.getElementById("matchStatus").innerText = info.status;
+
+        // Real batsmen
+        let batsmenList = score.batsmen || [];
+        let batsmenStr = batsmenList.map(b => `${b.name} (${b.runs})`).join(", ");
+        document.getElementById("batsmen").innerHTML = `<strong>Batsmen:</strong><br>${batsmenStr || "N/A"}`;
+
+        // Real bowler
+        let bowlerName = score.bowler?.name || "Bowler X";
+        let bowlerOvers = score.bowler?.overs || "0";
+        document.getElementById("bowler").innerHTML = `<strong>Bowler:</strong><br>${bowlerName} (${bowlerOvers} ov)`;
+
+    }catch(err){
+        document.getElementById("matchStatus").innerText="Live score not available!";
+        document.getElementById("batsmen").innerHTML="Batsmen: --";
+        document.getElementById("bowler").innerHTML="Bowler: --";
+    }
+}
+
+// ================= UPCOMING MATCHES
+async function fetchUpcoming(){
+    const url="https://cricbuzz-cricket.p.rapidapi.com/matches/v1/upcoming";
+    const opt={method:"GET",headers:{
+        "x-rapidapi-key":"0ae321d1b1msh5d066c3830ac468p174e88jsn6ad7d1eeace6",
+        "x-rapidapi-host":"cricbuzz-cricket.p.rapidapi.com"
+    }};
+    try{
+        const res = await fetch(url,opt);
+        const data = await res.json();
+        let allSeries = data.typeMatches[0].seriesMatches;
+
+        let html = "";
+        allSeries.forEach(series=>{
+            let matches = series.seriesAdWrapper.matches;
+            matches.forEach(m=>{
+                let info = m.matchInfo;
+                let countdownId = `cd_${info.matchId}`;
+                let matchDate = new Date(info.startDateTime);
+                let dateStr = matchDate.toLocaleString(); // Show exact date & time
+
+                html += `
+                <div class="upcoming-card" onclick="window.open('https://www.cricbuzz.com/live-cricket-scorecard/${info.matchId}','_blank')">
+                    <div class="team-block">
+                        <img src="${getLogo(info.team1.teamName)}" class="team-logo">
+                        <div>${info.team1.teamName}</div>
+                    </div>
+                    <div style="align-self:center;">vs</div>
+                    <div class="team-block">
+                        <img src="${getLogo(info.team2.teamName)}" class="team-logo">
+                        <div>${info.team2.teamName}</div>
+                    </div>
+                    <div class="details">Series: ${info.seriesName} | Venue: ${info.venueName}</div>
+                    <div class="details">Match Date & Time: ${dateStr}</div>
+                    <div class="details countdown" id="${countdownId}">Calculating...</div>
+                    <div class="squad">Players: Player1, Player2, Player3...</div>
+                </div>
+                `;
+            });
+        });
+
+        document.getElementById("upcomingList").innerHTML = html;
+        startCountdowns(allSeries);
+
+    }catch(err){
+        document.getElementById("upcomingList").innerText="Unable to load upcoming matches!";
+    }
+}
+
+// ================= COUNTDOWN TIMER
+function startCountdowns(seriesMatches){
+    seriesMatches.forEach(series=>{
+        series.seriesAdWrapper.matches.forEach(m=>{
+            let info = m.matchInfo;
+            let countdownId = `cd_${info.matchId}`;
+            let endTime = new Date(info.startDateTime).getTime();
+
+            let timer = setInterval(()=>{
+                let now = new Date().getTime();
+                let distance = endTime - now;
+                if(distance<0){document.getElementById(countdownId).innerText="Started"; clearInterval(timer);}
+                else{
+                    let d=Math.floor(distance/(1000*60*60*24));
+                    let h=Math.floor((distance%(1000*60*60*24))/(1000*60*60));
+                    let m=Math.floor((distance%(1000*60*60))/(1000*60));
+                    let s=Math.floor((distance%(1000*60))/1000);
+                    s = s < 10 ? '0'+s : s;
+                    document.getElementById(countdownId).innerText=`Starts in ${d}d ${h}h ${m}m ${s}s`;
+                }
+            },1000);
+        });
+    });
+}
+
+// ================= AUTO LOAD
+fetchScore();
+fetchUpcoming();
+setInterval(fetchScore,10000);
+</script>
+</body>
+</html>
